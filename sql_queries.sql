@@ -105,6 +105,166 @@ GROUP BY
   Brand;
 
 -- 10. Subcategory-wise selling amount
-SELECT Subcategory, COUNT(*) AS subcategory_count
-FROM products
-GROUP BY Subcategory;
+SELECT
+    Subcategory,
+    COUNT(Subcategory) AS subcategory_count
+FROM
+    product_details
+GROUP BY
+    Subcategory;
+
+SELECT
+    Subcategory,
+    ROUND(SUM(Unit_price_USD * sd.Quantity), 2) AS TOTAL_SALES_AMOUNT
+FROM
+    product_details pd
+JOIN
+    sales_details sd ON pd.ProductKey = sd.ProductKey
+GROUP BY
+    Subcategory
+ORDER BY
+    TOTAL_SALES_AMOUNT DESC;
+        -- 11. Country-wise overall sales
+SELECT s.Country, SUM(pd.Unit_price_USD * sd.Quantity) AS total_sales
+FROM products pd
+JOIN sales sd ON pd.ProductKey = sd.ProductKey
+JOIN stores s ON sd.StoreKey = s.StoreKey
+GROUP BY s.Country;
+
+SELECT s.Country, COUNT(DISTINCT s.StoreKey) AS num_stores, SUM(pd.Unit_price_USD * sd.Quantity) AS total_sales
+FROM products pd
+JOIN sales sd ON pd.ProductKey = sd.ProductKey
+JOIN stores s ON sd.StoreKey = s.StoreKey
+GROUP BY s.Country;
+-- 12. Year-wise brand sales
+SELECT
+    YEAR(Order_Date) AS order_year,
+    pd.Brand,
+    ROUND(SUM(Unit_price_USD * sd.Quantity), 2) AS year_sales
+FROM
+    sales sd
+JOIN
+    products pd ON sd.ProductKey = pd.ProductKey
+GROUP BY
+    YEAR(Order_Date),
+    pd.Brand;
+    -- 13. Overall sales with quantity
+    SELECT
+    Brand,
+    SUM(Unit_Price_USD * sd.Quantity) AS sp,
+    SUM(Unit_Cost_USD * sd.Quantity) AS cp,
+    (SUM(Unit_Price_USD * sd.Quantity) - SUM(Unit_Cost_USD * sd.Quantity)) / SUM(Unit_Cost_USD * sd.Quantity) * 100 AS profit
+FROM
+    products pd
+JOIN
+    sales sd ON sd.ProductKey = pd.ProductKey
+GROUP BY
+    Brand;
+    -- 14. Month-wise sales with quantity
+SELECT
+    DATE_FORMAT(Order_Date, '%Y-%m-01') AS month,
+    SUM(Unit_Price_USD * sd.Quantity) AS sp_month
+FROM
+    sales sd
+JOIN
+    products pd ON sd.ProductKey = pd.ProductKey
+GROUP BY
+    DATE_FORMAT(Order_Date, '%Y-%m-01');
+    -- 15. Month and year-wise sales with quantity
+SELECT
+    DATE_FORMAT(Order_Date, '%Y-%m-01') AS month,
+    YEAR(Order_Date) AS year,
+    pd.Brand,
+    SUM(Unit_Price_USD * sd.Quantity) AS sp_month
+FROM
+    sales sd
+JOIN
+    products pd ON sd.ProductKey = pd.ProductKey
+GROUP BY
+    DATE_FORMAT(Order_Date, '%Y-%m-01'),
+    YEAR(Order_Date),
+    pd.Brand;
+    -- 16. Year-wise sales
+SELECT
+    YEAR(Order_Date) AS year,
+    SUM(Unit_Price_USD * sd.Quantity) AS sp_year
+FROM
+    sales sd
+JOIN
+    products pd ON sd.ProductKey = pd.ProductKey
+GROUP BY
+    YEAR(Order_Date);
+    -- 17. Comparing current month and previous month
+WITH monthly_sales AS (
+    SELECT
+        DATE_FORMAT(Order_Date, '%Y-%m-01') AS month,
+        SUM(Unit_Price_USD * sd.Quantity) AS sales
+    FROM
+        sales sd
+    JOIN
+        products pd ON sd.ProductKey = pd.ProductKey
+    GROUP BY
+        DATE_FORMAT(Order_Date, '%Y-%m-01')
+)
+SELECT
+    month,
+    sales,
+    LAG(sales) OVER (ORDER BY month) AS Previous_Month_Sales
+FROM
+    monthly_sales;
+    -- 18. Comparing current year and previous year sales
+WITH yearly_sales AS (
+    SELECT
+        YEAR(Order_Date) AS year,
+        SUM(Unit_Price_USD * sd.Quantity) AS sales
+    FROM
+        sales sd
+    JOIN
+        products pd ON sd.ProductKey = pd.ProductKey
+    GROUP BY
+        YEAR(Order_Date)
+)
+SELECT
+    year,
+    sales,
+    LAG(sales) OVER (ORDER BY year) AS Previous_Year_Sales
+FROM
+    yearly_sales;
+    -- 19. Month-wise profit
+WITH monthly_profit AS (
+    SELECT
+        DATE_FORMAT(Order_Date, '%Y-%m-01') AS month,
+        SUM(Unit_Price_USD * sd.Quantity) - SUM(Unit_Cost_USD * sd.Quantity) AS profit
+    FROM
+        sales sd
+    JOIN
+        products pd ON sd.ProductKey = pd.ProductKey
+    GROUP BY
+        DATE_FORMAT(Order_Date, '%Y-%m-01')
+)
+SELECT
+    month,
+    profit,
+    LAG(profit) OVER (ORDER BY month) AS Previous_Month_Profit,
+    ROUND((profit - LAG(profit) OVER (ORDER BY month)) / LAG(profit) OVER (ORDER BY month) * 100, 2) AS profit_percent
+FROM
+    monthly_profit;
+    -- 20. Year-wise profit
+WITH yearly_profit AS (
+    SELECT
+        YEAR(Order_Date) AS year,
+        SUM(Unit_Price_USD * sd.Quantity) - SUM(Unit_Cost_USD * sd.Quantity) AS profit
+    FROM
+        sales sd
+    JOIN
+        products pd ON sd.ProductKey = pd.ProductKey
+    GROUP BY
+        YEAR(Order_Date)
+)
+SELECT
+    year,
+    profit,
+    LAG(profit) OVER (ORDER BY year) AS Previous_Year_Profit,
+    ROUND((profit - LAG(profit) OVER (ORDER BY year)) / LAG(profit) OVER (ORDER BY year) * 100, 2) AS profit_percent
+FROM
+    yearly_profit;
